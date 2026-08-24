@@ -4,7 +4,7 @@ Backend da plataforma Bulbe Energia, desenvolvido na disciplina Projeto Ciência
 
 ## Equipe
 
-Squad Master — Bernardo A. Alvim, Felipe Nunes, Caio Freitas, Davi Edmundo, Luca Bellei e Vinicius Bianchetti.
+Squad Master — Bernardo A. Alvim, Felipe Nunes, Caio Freitas, Luca Bellei e Vinicius Bianchetti.
 
 ## Documentação
 
