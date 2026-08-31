@@ -1,0 +1,177 @@
+@startuml
+title Diagrama de Classes do Domínio — API Bulbe Energia
+
+top to bottom direction
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F7F7F7
+  BorderColor #2B6CB0
+  ArrowColor #2B6CB0
+}
+
+class Conta {
+    -id: string
+    -email: string
+    -senhaHash: string
+    -status: string
+    -criadaEm: datetime
+    +validarSenha(senha: string): boolean
+    +estaAtiva(): boolean
+    +criarSessao(): Sessao
+}
+
+class Sessao {
+    -id: string
+    -expiraEm: datetime
+    -invalidadaEm: datetime
+    +estaValida(instante: datetime): boolean
+    +invalidar(): void
+}
+
+class Cliente {
+    -id: string
+    -nomeExibicao: string
+    -email: string
+    -status: string
+    +consultarDados(): Cliente
+    +consultarAtivacao(): Ativacao
+    +consultarFaturas(): List<Fatura>
+}
+
+class Ativacao {
+    -status: string
+    -percentual: int
+    -iniciadaEm: date
+    -previsaoConclusao: date
+    -atualizadaEm: datetime
+    +calcularPercentual(): int
+    +obterEtapaAtual(): EtapaAtivacao
+}
+
+class EtapaAtivacao {
+    -id: string
+    -ordem: int
+    -nome: string
+    -status: string
+    -concluidaEm: datetime
+    -previsaoConclusao: date
+    +concluir(instante: datetime): void
+}
+
+class PreferenciaNotificacao {
+    -tipo: string
+    -habilitada: boolean
+    -canais: List<string>
+    -atualizadaEm: datetime
+    +alterar(habilitada: boolean, canais: List<string>): void
+}
+
+class Notificacao {
+    -id: string
+    -tipo: string
+    -titulo: string
+    -mensagem: string
+    -lida: boolean
+    -criadaEm: datetime
+    -lidaEm: datetime
+    +marcarComoLida(instante: datetime): void
+}
+
+class Fatura {
+    -id: string
+    -identificadorExibivel: string
+    -competencia: string
+    -valor: decimal
+    -moeda: string
+    -status: string
+    -vencimento: date
+    -atualizadaEm: datetime
+    +consultarPagamento(): Pagamento
+    +consultarRepasse(): Repasse
+}
+
+class Pagamento {
+    -status: string
+    -forma: string
+    -pagoEm: datetime
+    -valor: decimal
+    -moeda: string
+    -atualizadoEm: datetime
+    +confirmar(instante: datetime): void
+}
+
+class Repasse {
+    -status: string
+    -atualizadoEm: datetime
+    +obterEtapaAtual(): EtapaRepasse
+}
+
+class EtapaRepasse {
+    -id: string
+    -ordem: int
+    -nome: string
+    -status: string
+    -ocorridoEm: datetime
+    -previsao: date
+    -mensagem: string
+    +concluir(instante: datetime): void
+}
+
+class Usina {
+    -id: string
+    -nome: string
+    -cidade: string
+    -estado: string
+    -regiao: string
+    -status: string
+    -atualizadaEm: datetime
+    +consultarCreditos(competencia: string): List<CreditoUsina>
+}
+
+class CreditoUsina {
+    -competencia: string
+    -valor: decimal
+    -moeda: string
+    -atualizadoEm: datetime
+    +obterValor(): decimal
+}
+
+class Depoimento {
+    -id: string
+    -nomePublico: string
+    -localidade: string
+    -avaliacao: int
+    -economiaMensal: decimal
+    -diasParaAtivacao: int
+    -percentualDesconto: decimal
+    -tempoContaAtivaMeses: int
+    -texto: string
+    -publicacaoAutorizada: boolean
+    +podeSerPublicado(): boolean
+}
+
+Cliente "1" -- "0..1" Conta : vincula-se a
+Conta "1" *-- "0..*" Sessao : cria
+
+Cliente "1" *-- "0..1" Ativacao : acompanha
+Ativacao "1" *-- "1..*" EtapaAtivacao : contém
+Cliente "1" *-- "0..*" PreferenciaNotificacao : configura
+Cliente "1" *-- "0..*" Notificacao : recebe
+
+Cliente "1" -- "0..*" Fatura : possui
+Fatura "1" *-- "0..1" Pagamento : registra
+Fatura "1" *-- "0..1" Repasse : origina
+Repasse "1" *-- "1..*" EtapaRepasse : contém
+
+Usina "1" *-- "0..*" CreditoUsina : gera
+Cliente "0..1" -- "0..*" Depoimento : autoriza
+
+legend left
+  |= Relação |= Semântica |
+  | -- | associação |
+  | *-- | composição: a parte depende do todo |
+endlegend
+
+@enduml
