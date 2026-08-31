@@ -1,0 +1,48 @@
+@startuml
+title UC002 — Atividade de autenticação
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #F7F7F7
+  BorderColor #2B6CB0
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #2B6CB0
+  ArrowColor #2B6CB0
+}
+
+start
+:Receber POST /v1/sessoes;
+:Validar e-mail, senha e formato JSON;
+
+if (Dados válidos?) then (sim)
+  :Aplicar limite de tentativas;
+
+  if (Limite excedido?) then (sim)
+    :Retornar 429 Too Many Requests;
+    stop
+  else (não)
+    :Consultar conta pelo e-mail;
+
+    if (Conta ativa encontrada?) then (sim)
+      :Comparar senha com hash e salt;
+
+      if (Senha válida?) then (sim)
+        :Criar sessão com expiração;
+        :Persistir sessão vinculada à conta e ao cliente;
+        :Retornar 201 Created com dados da sessão;
+        stop
+      else (não)
+        :Retornar 401 Unauthorized;
+        stop
+      endif
+    else (não)
+      :Retornar 401 Unauthorized;
+      stop
+    endif
+  endif
+else (não)
+  :Retornar 400 Bad Request;
+  stop
+endif
+
+@enduml

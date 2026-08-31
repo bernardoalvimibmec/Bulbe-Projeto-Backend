@@ -1,0 +1,57 @@
+@startuml
+title UC002 — Autenticar usuário
+
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #2B6CB0
+  LifeLineBorderColor #2B6CB0
+  ParticipantBorderColor #2B6CB0
+  ParticipantBackgroundColor #F7F7F7
+}
+
+actor "Cliente\n(App Frontend)" as Cliente
+participant "API\n(Bulbe Energia)" as API
+database "Banco de\nDados" as DB
+
+Cliente -> API : POST /v1/sessoes\n{email, senha}
+activate API
+API -> API : Validar corpo da requisição
+
+alt dados inválidos
+  API --> Cliente : 400 Bad Request\n(erro padronizado)
+else dados válidos
+  API -> API : Aplicar limite de tentativas
+
+  alt limite excedido
+    API --> Cliente : 429 Too Many Requests\n(erro padronizado)
+  else tentativa permitida
+    API -> DB : Consultar conta por e-mail
+    activate DB
+    DB --> API : Conta encontrada ou ausência
+    deactivate DB
+
+    alt conta ausente ou inativa
+      API --> Cliente : 401 Unauthorized\n(credenciais inválidas)
+    else conta ativa
+      API -> API : Comparar senha com hash e salt
+
+      alt senha inválida
+        API --> Cliente : 401 Unauthorized\n(credenciais inválidas)
+      else senha válida
+        API -> DB : Criar sessão\n(contaId, clienteId, expiraEm)
+        activate DB
+        DB --> API : Sessão persistida
+        deactivate DB
+        API --> Cliente : 201 Created\n{sessao_id, conta_id, cliente_id, expira_em}
+      end
+    end
+  end
+end
+
+note right of API
+  A resposta 401 não informa se o e-mail existe.
+  Erros usam codigo, mensagem, detalhes e request_id.
+end note
+
+deactivate API
+@enduml
