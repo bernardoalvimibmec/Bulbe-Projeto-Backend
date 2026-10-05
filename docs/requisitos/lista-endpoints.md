@@ -5,7 +5,7 @@
 - **Projeto:** Bulbe — evolução do frontend e implementação do backend
 - **Empresa parceira:** Bulbe Energia
 - **Equipe:** Squad Master
-- **Integrantes:** Bernardo A. Alvim, Felipe Nunes, Caio Freitas, Davi Edmundo, Luca Bellei e Vinicius
+- **Integrantes:** Bernardo A. Alvim, Felipe Nunes, Caio Freitas, Luca Bellei e Vinicius Bianchetti
 - **Data:** 17/08/2026
 - **Sprint / Etapa:** Sprint 1 — Design da API
 
@@ -606,4 +606,4 @@ Os requisitos não funcionais RNF001 a RNF012 não originam endpoints isolados. 
 
 ## Próximos passos
 
-Este documento deverá ser formalizado em OpenAPI/Swagger em `docs/api/openapi.yaml`, validado com a Bulbe e usado como base para a modelagem dos casos de uso da API.
+Este documento está formalizado em OpenAPI em [`docs/api/openapi.yaml`](../api/openapi.yaml). Ainda precisa ser validado com a Bulbe e é a base para a modelagem dos casos de uso da API.
