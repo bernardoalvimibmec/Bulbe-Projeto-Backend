@@ -1,0 +1,1365 @@
+openapi: 3.1.0
+info:
+  title: API Bulbe Energia
+  version: 1.0.0
+  description: |
+    Contrato da API do backend da plataforma Bulbe Energia, desenvolvido na
+    disciplina Projeto Ciência de Dados II pela equipe Squad Master.
+
+    Este arquivo formaliza a lista de endpoints de
+    `docs/requisitos/lista-endpoints.md`. Os requisitos de origem (RF) de cada
+    operação aparecem na descrição.
+
+    **Convenções**
+
+    - Corpo das requisições e respostas em JSON, salvo redirecionamentos e
+      respostas sem conteúdo.
+    - Datas no formato ISO 8601; datas com hora sempre com fuso horário.
+    - Valores monetários como objeto `{ valor, moeda }`, com moeda ISO 4217.
+    - Paginação com `page` (começa em 1) e `limit`.
+    - Um cliente só acessa recursos vinculados à própria conta. O backend valida
+      o vínculo mesmo que outro `clienteId` seja informado na URL.
+
+    **Pendências com a Bulbe** (ver seção de observações da lista de endpoints):
+    mecanismo de sessão, corpo definitivo do primeiro acesso, divulgação pública
+    de créditos por usina e fórmula de cálculo dos totais.
+  contact:
+    name: Squad Master
+servers:
+  - url: http://localhost:8000
+    description: Ambiente local de desenvolvimento
+tags:
+  - name: Contas e sessões
+    description: Cadastro, primeiro acesso, autenticação e encerramento de sessão.
+  - name: Clientes
+    description: Dados básicos do cliente vinculado à conta.
+  - name: Usinas
+    description: Usinas da Bulbe e créditos de energia gerados.
+  - name: Depoimentos
+    description: Histórias de clientes com publicação autorizada.
+  - name: Ativação
+    description: Progresso da ativação do cliente e preferências de atualização.
+  - name: Faturas
+    description: Faturas, pagamentos e repasse à CEMIG.
+  - name: Notificações
+    description: Notificações da conta do cliente.
+
+paths:
+  /v1/contas:
+    post:
+      tags: [Contas e sessões]
+      operationId: criarConta
+      summary: Inicia cadastro ou primeiro acesso
+      description: |
+        Inicia o cadastro ou primeiro acesso e associa a conta digital ao
+        cadastro correto do cliente Bulbe. Pública.
+
+        Requisitos: RF004, RF007. O corpo é provisório até a Bulbe definir a
+        política de primeiro acesso.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContaCriacao'
+      responses:
+        '201':
+          description: Conta criada e vinculada ao cliente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conta'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '422':
+          $ref: '#/components/responses/NaoProcessavel'
+
+  /v1/sessoes:
+    post:
+      tags: [Contas e sessões]
+      operationId: criarSessao
+      summary: Inicia uma sessão autenticada
+      description: |
+        Valida as credenciais e inicia uma sessão para uma conta ativa. Pública.
+
+        Requisito: RF003.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credenciais'
+      responses:
+        '201':
+          description: Sessão iniciada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sessao'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+
+  /v1/sessoes/atual:
+    delete:
+      tags: [Contas e sessões]
+      operationId: encerrarSessao
+      summary: Encerra a sessão atual
+      description: |
+        Invalida a sessão usada na requisição.
+
+        Requisito: RF005.
+      responses:
+        '204':
+          description: Sessão encerrada. Sem corpo.
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+
+  /v1/clientes/{clienteId}:
+    get:
+      tags: [Clientes]
+      operationId: obterCliente
+      summary: Retorna os dados básicos do cliente
+      description: |
+        Retorna os dados básicos do cliente associado à conta autenticada.
+
+        Requisitos: RF006, RF007.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+      responses:
+        '200':
+          description: Dados do cliente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+  /v1/usinas:
+    get:
+      tags: [Usinas]
+      operationId: listarUsinas
+      summary: Lista as usinas da Bulbe
+      description: |
+        Lista as usinas disponibilizadas pela Bulbe, com paginação e filtro de
+        situação. Pública.
+
+        Requisitos: RF008, RF011.
+      security: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtra pela situação da usina.
+          schema:
+            $ref: '#/components/schemas/StatusUsina'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Página de usinas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaUsinas'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/usinas/{usinaId}:
+    get:
+      tags: [Usinas]
+      operationId: obterUsina
+      summary: Retorna uma usina específica
+      description: |
+        Retorna identificação, localização e situação de uma usina. Pública.
+
+        Requisito: RF008.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UsinaId'
+      responses:
+        '200':
+          description: Dados da usina.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usina'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/usinas/{usinaId}/creditos:
+    get:
+      tags: [Usinas]
+      operationId: obterCreditosUsina
+      summary: Retorna os créditos de uma usina no período
+      description: |
+        Retorna os créditos monetários gerados pela usina em uma competência.
+        Pública, desde que a Bulbe confirme que os valores podem ser divulgados.
+
+        Requisito: RF009.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UsinaId'
+        - $ref: '#/components/parameters/CompetenciaObrigatoria'
+      responses:
+        '200':
+          description: Créditos da usina na competência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditoUsina'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/creditos-usinas/resumo:
+    get:
+      tags: [Usinas]
+      operationId: obterResumoCreditos
+      summary: Retorna o total de créditos gerados no período
+      description: |
+        Calcula o total monetário dos créditos a partir das usinas e do
+        período considerados no mesmo conjunto de dados. Pública, condicionada
+        à aprovação dos dados que podem ser divulgados.
+
+        Requisito: RF010.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CompetenciaObrigatoria'
+        - name: status_usina
+          in: query
+          required: false
+          description: Situação das usinas consideradas no total.
+          schema:
+            $ref: '#/components/schemas/StatusUsina'
+            default: ativa
+      responses:
+        '200':
+          description: Total de créditos na competência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumoCreditos'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/depoimentos:
+    get:
+      tags: [Depoimentos]
+      operationId: listarDepoimentos
+      summary: Lista depoimentos públicos autorizados
+      description: |
+        Lista somente depoimentos com publicação autorizada pela Bulbe e pelo
+        titular dos dados. Pública.
+
+        Requisitos: RF012, RF013.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Página de depoimentos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDepoimentos'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/depoimentos/{depoimentoId}:
+    get:
+      tags: [Depoimentos]
+      operationId: obterDepoimento
+      summary: Retorna um depoimento público
+      description: |
+        Retorna um depoimento específico, desde que continue autorizado.
+        Pública.
+
+        Requisitos: RF012, RF013.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DepoimentoId'
+      responses:
+        '200':
+          description: Depoimento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Depoimento'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/ativacao:
+    get:
+      tags: [Ativação]
+      operationId: obterAtivacao
+      summary: Retorna a situação geral da ativação
+      description: |
+        Retorna o estado consolidado usado pela interface para representar o
+        progresso real da ativação.
+
+        Requisitos: RF015, RF019.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+      responses:
+        '200':
+          description: Situação da ativação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ativacao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/ativacao/etapas:
+    get:
+      tags: [Ativação]
+      operationId: listarEtapasAtivacao
+      summary: Lista as etapas da ativação
+      description: |
+        Lista, na ordem oficial, as etapas concluídas, a etapa atual e as
+        etapas pendentes.
+
+        Requisitos: RF016, RF017, RF018, RF019.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+      responses:
+        '200':
+          description: Etapas da ativação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEtapasAtivacao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/preferencias-notificacao/ativacao:
+    put:
+      tags: [Ativação]
+      operationId: salvarPreferenciaAtivacao
+      summary: Cria ou substitui a preferência de atualizações da ativação
+      description: |
+        Cria ou substitui, de forma idempotente, a preferência de atualizações
+        sobre a ativação. Canais e regras sujeitos à confirmação de escopo.
+
+        Requisito: RF020.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferenciaNotificacaoEntrada'
+      responses:
+        '200':
+          description: Preferência salva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferenciaNotificacao'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '422':
+          $ref: '#/components/responses/NaoProcessavel'
+
+  /v1/clientes/{clienteId}/faturas:
+    get:
+      tags: [Faturas]
+      operationId: listarFaturas
+      summary: Lista as faturas do cliente
+      description: |
+        Lista as faturas do cliente com paginação e filtro por competência.
+        Retorna 200 mesmo com lista vazia.
+
+        Requisito: RF021.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/CompetenciaOpcional'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Página de faturas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaFaturas'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/faturas/{faturaId}:
+    get:
+      tags: [Faturas]
+      operationId: obterFatura
+      summary: Retorna uma fatura específica
+      description: |
+        Retorna valor, competência, identificador exibível e situação de uma
+        fatura.
+
+        Requisito: RF021.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/FaturaId'
+      responses:
+        '200':
+          description: Dados da fatura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fatura'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/faturas/{faturaId}/pagamento:
+    get:
+      tags: [Faturas]
+      operationId: obterPagamentoFatura
+      summary: Retorna a situação do pagamento da fatura
+      description: |
+        Retorna a situação real do pagamento, a forma usada e o instante de
+        confirmação, quando existentes.
+
+        Requisito: RF022.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/FaturaId'
+      responses:
+        '200':
+          description: Dados do pagamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pagamento'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/faturas/{faturaId}/repasse:
+    get:
+      tags: [Faturas]
+      operationId: obterRepasseFatura
+      summary: Retorna as etapas do repasse à CEMIG
+      description: |
+        Retorna os eventos e estados confirmados do repasse relacionado à CEMIG.
+
+        Requisito: RF023.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/FaturaId'
+      responses:
+        '200':
+          description: Repasse da fatura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repasse'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/historico-faturas-externo:
+    get:
+      tags: [Faturas]
+      operationId: redirecionarHistoricoFaturas
+      summary: Redireciona para o histórico externo de faturas
+      description: |
+        Valida sessão, vínculo e destino e então redireciona para o sistema
+        externo de histórico de faturas da Bulbe.
+
+        Requisito: RF024.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+      responses:
+        '302':
+          description: Redirecionamento para o sistema externo. Sem corpo JSON.
+          headers:
+            Location:
+              description: URL HTTPS aprovada pela Bulbe.
+              schema:
+                type: string
+                format: uri
+              example: https://sistema-oficial.exemplo/historico
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/notificacoes:
+    get:
+      tags: [Notificações]
+      operationId: listarNotificacoes
+      summary: Lista as notificações da conta
+      description: |
+        Lista notificações relevantes associadas à conta do cliente.
+
+        Requisito: RF025.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - name: lida
+          in: query
+          required: false
+          description: Filtra por estado de leitura.
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Página de notificações.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaNotificacoes'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '503':
+          $ref: '#/components/responses/Indisponivel'
+
+  /v1/clientes/{clienteId}/notificacoes/{notificacaoId}:
+    get:
+      tags: [Notificações]
+      operationId: obterNotificacao
+      summary: Retorna uma notificação específica
+      description: |
+        Retorna uma notificação vinculada ao cliente.
+
+        Requisito: RF025.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/NotificacaoId'
+      responses:
+        '200':
+          description: Notificação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notificacao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [Notificações]
+      operationId: atualizarLeituraNotificacao
+      summary: Atualiza o estado de leitura de uma notificação
+      description: |
+        Altera apenas o estado de leitura da notificação.
+
+        Requisito: RF025.
+      parameters:
+        - $ref: '#/components/parameters/ClienteId'
+        - $ref: '#/components/parameters/NotificacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificacaoLeituraEntrada'
+      responses:
+        '200':
+          description: Estado de leitura atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificacaoLeitura'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+security:
+  - sessao: []
+
+components:
+  securitySchemes:
+    sessao:
+      type: http
+      scheme: bearer
+      description: |
+        Token da sessão retornado por `POST /v1/sessoes`. O mecanismo definitivo
+        (token, cookie, expiração e renovação) será fixado na etapa de
+        autenticação e autorização.
+
+  parameters:
+    ClienteId:
+      name: clienteId
+      in: path
+      required: true
+      description: Identificador do cliente. Precisa ser o cliente vinculado à sessão.
+      schema:
+        type: string
+      example: cliente_01
+    UsinaId:
+      name: usinaId
+      in: path
+      required: true
+      description: Identificador da usina.
+      schema:
+        type: string
+      example: usina_01
+    DepoimentoId:
+      name: depoimentoId
+      in: path
+      required: true
+      description: Identificador do depoimento.
+      schema:
+        type: string
+      example: depoimento_01
+    FaturaId:
+      name: faturaId
+      in: path
+      required: true
+      description: Identificador da fatura.
+      schema:
+        type: string
+      example: fatura_01
+    NotificacaoId:
+      name: notificacaoId
+      in: path
+      required: true
+      description: Identificador da notificação.
+      schema:
+        type: string
+      example: notificacao_01
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Número da página, começando em 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Quantidade máxima de itens por página.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CompetenciaObrigatoria:
+      name: competencia
+      in: query
+      required: true
+      description: Período no formato AAAA-MM.
+      schema:
+        $ref: '#/components/schemas/Competencia'
+    CompetenciaOpcional:
+      name: competencia
+      in: query
+      required: false
+      description: Período no formato AAAA-MM.
+      schema:
+        $ref: '#/components/schemas/Competencia'
+
+  responses:
+    RequisicaoInvalida:
+      description: JSON, campos ou parâmetros inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: REQUISICAO_INVALIDA
+            mensagem: Um ou mais campos da requisição são inválidos.
+            detalhes:
+              - campo: competencia
+                mensagem: Use o formato AAAA-MM.
+            request_id: req_01
+    NaoAutenticado:
+      description: Sessão ausente, inválida ou credenciais incorretas.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: NAO_AUTENTICADO
+            mensagem: É necessário estar autenticado.
+            detalhes: []
+            request_id: req_01
+    Proibido:
+      description: A sessão não tem vínculo com o cliente informado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: ACESSO_NEGADO
+            mensagem: Você não tem permissão para acessar este recurso.
+            detalhes: []
+            request_id: req_01
+    NaoEncontrado:
+      description: Recurso não encontrado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: RECURSO_NAO_ENCONTRADO
+            mensagem: O recurso solicitado não foi encontrado.
+            detalhes: []
+            request_id: req_01
+    Conflito:
+      description: O recurso já existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: CONTA_JA_EXISTENTE
+            mensagem: Já existe uma conta para este cliente.
+            detalhes: []
+            request_id: req_01
+    NaoProcessavel:
+      description: Requisição bem formada, mas recusada por regra de negócio.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: CLIENTE_INELEGIVEL
+            mensagem: Não foi possível confirmar o vínculo com um cliente Bulbe.
+            detalhes: []
+            request_id: req_01
+    MuitasTentativas:
+      description: Excesso de tentativas de autenticação.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: MUITAS_TENTATIVAS
+            mensagem: Muitas tentativas. Aguarde antes de tentar novamente.
+            detalhes: []
+            request_id: req_01
+    Indisponivel:
+      description: Fonte oficial de dados temporariamente indisponível.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            codigo: FONTE_INDISPONIVEL
+            mensagem: Os dados não estão disponíveis no momento. Tente novamente mais tarde.
+            detalhes: []
+            request_id: req_01
+
+  schemas:
+    Erro:
+      type: object
+      description: Formato padrão de erro de todos os endpoints.
+      required: [codigo, mensagem, detalhes, request_id]
+      properties:
+        codigo:
+          type: string
+          description: Código estável e legível por máquina.
+          example: RECURSO_NAO_ENCONTRADO
+        mensagem:
+          type: string
+          description: Mensagem compreensível para quem consome a API.
+        detalhes:
+          type: array
+          description: Detalhes adicionais, como os campos que falharam na validação.
+          items:
+            type: object
+            properties:
+              campo:
+                type: string
+              mensagem:
+                type: string
+        request_id:
+          type: string
+          description: Identificador da requisição, para rastreio.
+
+    Dinheiro:
+      type: object
+      required: [valor, moeda]
+      properties:
+        valor:
+          type: number
+          format: decimal
+          example: 89.90
+        moeda:
+          type: string
+          description: Código ISO 4217.
+          example: BRL
+
+    Competencia:
+      type: string
+      pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+      example: '2026-08'
+
+    Paginacao:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 1
+
+    ContaCriacao:
+      type: object
+      required: [email, senha, identificador_cliente]
+      properties:
+        email:
+          type: string
+          format: email
+        senha:
+          type: string
+          format: password
+          minLength: 8
+        identificador_cliente:
+          type: string
+          description: Identificador fornecido pela Bulbe para vincular a conta ao cliente.
+        codigo_verificacao:
+          type: string
+          description: Código de verificação do primeiro acesso, se exigido pela Bulbe.
+      example:
+        email: cliente@exemplo.com
+        senha: senha-informada-pelo-cliente
+        identificador_cliente: identificador-fornecido-pela-bulbe
+        codigo_verificacao: '123456'
+
+    Conta:
+      type: object
+      required: [id, cliente_id, email, status, criada_em]
+      properties:
+        id:
+          type: string
+          example: conta_01
+        cliente_id:
+          type: string
+          example: cliente_01
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [ativa, bloqueada, inativa]
+        criada_em:
+          type: string
+          format: date-time
+
+    Credenciais:
+      type: object
+      required: [email, senha]
+      properties:
+        email:
+          type: string
+          format: email
+        senha:
+          type: string
+          format: password
+      example:
+        email: cliente@exemplo.com
+        senha: senha-informada-pelo-cliente
+
+    Sessao:
+      type: object
+      required: [sessao_id, conta_id, cliente_id, expira_em]
+      properties:
+        sessao_id:
+          type: string
+          example: sessao_01
+        conta_id:
+          type: string
+          example: conta_01
+        cliente_id:
+          type: string
+          example: cliente_01
+        expira_em:
+          type: string
+          format: date-time
+
+    Cliente:
+      type: object
+      required: [id, nome_exibicao, email, status]
+      properties:
+        id:
+          type: string
+          example: cliente_01
+        nome_exibicao:
+          type: string
+          example: Cliente Bulbe
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [ativo, inativo]
+
+    StatusUsina:
+      type: string
+      enum: [ativa, em_manutencao, inativa]
+
+    UsinaResumo:
+      type: object
+      required: [id, nome, cidade, estado, status]
+      properties:
+        id:
+          type: string
+          example: usina_01
+        nome:
+          type: string
+          example: Usina Exemplo
+        cidade:
+          type: string
+          example: Montes Claros
+        estado:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: MG
+        status:
+          $ref: '#/components/schemas/StatusUsina'
+
+    Usina:
+      allOf:
+        - $ref: '#/components/schemas/UsinaResumo'
+        - type: object
+          required: [regiao, atualizado_em]
+          properties:
+            regiao:
+              type: string
+              example: Norte de Minas
+            atualizado_em:
+              type: string
+              format: date-time
+
+    ListaUsinas:
+      allOf:
+        - $ref: '#/components/schemas/Paginacao'
+        - type: object
+          required: [data, atualizado_em]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/UsinaResumo'
+            atualizado_em:
+              type: string
+              format: date-time
+
+    CreditoUsina:
+      type: object
+      required: [usina_id, competencia, creditos, atualizado_em]
+      properties:
+        usina_id:
+          type: string
+          example: usina_01
+        competencia:
+          $ref: '#/components/schemas/Competencia'
+        creditos:
+          $ref: '#/components/schemas/Dinheiro'
+        atualizado_em:
+          type: string
+          format: date-time
+
+    ResumoCreditos:
+      type: object
+      required: [competencia, criterio, quantidade_usinas, total_creditos, atualizado_em]
+      properties:
+        competencia:
+          $ref: '#/components/schemas/Competencia'
+        criterio:
+          type: string
+          example: usinas_ativas
+        quantidade_usinas:
+          type: integer
+          example: 4
+        total_creditos:
+          $ref: '#/components/schemas/Dinheiro'
+        atualizado_em:
+          type: string
+          format: date-time
+
+    Depoimento:
+      type: object
+      required: [id, nome_publico, localidade, avaliacao, texto]
+      properties:
+        id:
+          type: string
+          example: depoimento_01
+        nome_publico:
+          type: string
+          example: Cliente de Minas Gerais
+        localidade:
+          type: string
+          example: Montes Claros - MG
+        avaliacao:
+          type: integer
+          minimum: 1
+          maximum: 5
+        economia_mensal:
+          $ref: '#/components/schemas/Dinheiro'
+        dias_para_ativacao:
+          type: integer
+          example: 72
+        percentual_desconto:
+          type: number
+          example: 15
+        tempo_conta_ativa_meses:
+          type: integer
+          example: 8
+        texto:
+          type: string
+
+    ListaDepoimentos:
+      allOf:
+        - $ref: '#/components/schemas/Paginacao'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Depoimento'
+
+    StatusAtivacao:
+      type: string
+      enum: [nao_iniciada, em_andamento, concluida, cancelada]
+
+    Ativacao:
+      type: object
+      required: [cliente_id, status, percentual, atualizado_em]
+      properties:
+        cliente_id:
+          type: string
+          example: cliente_01
+        status:
+          $ref: '#/components/schemas/StatusAtivacao'
+        percentual:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 50
+        etapa_atual_id:
+          type: [string, 'null']
+          example: etapa_03
+        iniciada_em:
+          type: string
+          format: date
+        previsao_conclusao:
+          type: [string, 'null']
+          format: date
+        atualizado_em:
+          type: string
+          format: date-time
+
+    EtapaAtivacao:
+      type: object
+      required: [id, ordem, nome, status]
+      properties:
+        id:
+          type: string
+          example: etapa_03
+        ordem:
+          type: integer
+          example: 3
+        nome:
+          type: string
+          example: Homologação
+        status:
+          type: string
+          enum: [concluida, atual, pendente]
+        concluida_em:
+          type: [string, 'null']
+          format: date-time
+        previsao_conclusao:
+          type: [string, 'null']
+          format: date
+
+    ListaEtapasAtivacao:
+      type: object
+      required: [cliente_id, data, atualizado_em]
+      properties:
+        cliente_id:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EtapaAtivacao'
+        atualizado_em:
+          type: string
+          format: date-time
+
+    PreferenciaNotificacaoEntrada:
+      type: object
+      required: [habilitada, canais]
+      properties:
+        habilitada:
+          type: boolean
+        canais:
+          type: array
+          items:
+            type: string
+            enum: [email]
+      example:
+        habilitada: true
+        canais: [email]
+
+    PreferenciaNotificacao:
+      type: object
+      required: [cliente_id, tipo, habilitada, canais, atualizada_em]
+      properties:
+        cliente_id:
+          type: string
+        tipo:
+          type: string
+          example: ativacao
+        habilitada:
+          type: boolean
+        canais:
+          type: array
+          items:
+            type: string
+        atualizada_em:
+          type: string
+          format: date-time
+
+    StatusFatura:
+      type: string
+      enum: [aberta, paga, vencida, cancelada]
+
+    FaturaResumo:
+      type: object
+      required: [id, identificador_exibivel, competencia, valor, status]
+      properties:
+        id:
+          type: string
+          example: fatura_01
+        identificador_exibivel:
+          type: string
+          example: LIC 0000-0
+        competencia:
+          $ref: '#/components/schemas/Competencia'
+        valor:
+          $ref: '#/components/schemas/Dinheiro'
+        status:
+          $ref: '#/components/schemas/StatusFatura'
+
+    Fatura:
+      allOf:
+        - $ref: '#/components/schemas/FaturaResumo'
+        - type: object
+          required: [cliente_id, vencimento, atualizado_em]
+          properties:
+            cliente_id:
+              type: string
+            vencimento:
+              type: string
+              format: date
+            atualizado_em:
+              type: string
+              format: date-time
+
+    ListaFaturas:
+      allOf:
+        - $ref: '#/components/schemas/Paginacao'
+        - type: object
+          required: [data, atualizado_em]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/FaturaResumo'
+            atualizado_em:
+              type: string
+              format: date-time
+
+    Pagamento:
+      type: object
+      required: [fatura_id, status, atualizado_em]
+      properties:
+        fatura_id:
+          type: string
+        status:
+          type: string
+          enum: [pendente, confirmado, recusado, estornado]
+        forma:
+          type: [string, 'null']
+          example: pix
+        pago_em:
+          type: [string, 'null']
+          format: date-time
+        valor:
+          $ref: '#/components/schemas/Dinheiro'
+        atualizado_em:
+          type: string
+          format: date-time
+
+    EtapaRepasse:
+      type: object
+      required: [id, ordem, nome, status]
+      properties:
+        id:
+          type: string
+          example: repasse_etapa_01
+        ordem:
+          type: integer
+        nome:
+          type: string
+          example: Pagamento confirmado
+        status:
+          type: string
+          enum: [concluida, atual, pendente]
+        ocorrido_em:
+          type: [string, 'null']
+          format: date-time
+        previsao:
+          type: [string, 'null']
+          format: date
+        mensagem:
+          type: [string, 'null']
+
+    Repasse:
+      type: object
+      required: [fatura_id, status, etapas, atualizado_em]
+      properties:
+        fatura_id:
+          type: string
+        status:
+          type: string
+          enum: [nao_iniciado, em_andamento, concluido]
+        etapas:
+          type: array
+          items:
+            $ref: '#/components/schemas/EtapaRepasse'
+        atualizado_em:
+          type: string
+          format: date-time
+
+    Notificacao:
+      type: object
+      required: [id, tipo, titulo, mensagem, lida, criada_em]
+      properties:
+        id:
+          type: string
+          example: notificacao_01
+        tipo:
+          type: string
+          example: ativacao_atualizada
+        titulo:
+          type: string
+        mensagem:
+          type: string
+        lida:
+          type: boolean
+        criada_em:
+          type: string
+          format: date-time
+
+    ListaNotificacoes:
+      allOf:
+        - $ref: '#/components/schemas/Paginacao'
+        - type: object
+          required: [data, nao_lidas]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Notificacao'
+            nao_lidas:
+              type: integer
+              example: 1
+
+    NotificacaoLeituraEntrada:
+      type: object
+      required: [lida]
+      properties:
+        lida:
+          type: boolean
+      example:
+        lida: true
+
+    NotificacaoLeitura:
+      type: object
+      required: [id, lida]
+      properties:
+        id:
+          type: string
+        lida:
+          type: boolean
+        lida_em:
+          type: [string, 'null']
+          format: date-time
