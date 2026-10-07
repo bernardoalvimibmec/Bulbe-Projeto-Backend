@@ -1,17 +1,4 @@
-"""
-Entidade Depoimento (US11 — listar depoimentos publicos autorizados).
-
-Segue o diagrama de classes: nomePublico, localidade, avaliacao, economiaMensal,
-diasParaAtivacao, percentualDesconto, tempoContaAtivaMeses, texto,
-publicacaoAutorizada e o metodo podeSerPublicado().
-
-Regras que moram no proprio depoimento (LGPD — RNF004):
-- so pode ser publicado se o titular autorizou e se ha texto;
-- para o publico saem apenas os campos publicos do contrato. O cliente_id,
-  que liga o depoimento a uma pessoa real, nunca sai daqui;
-- um depoimento nao autorizado responde como "nao encontrado" (404), igual a
-  um que nao existe, para nao revelar que ele existe.
-"""
+"""Entidade Depoimento (US11)."""
 
 from dataclasses import dataclass
 from decimal import Decimal
@@ -32,7 +19,7 @@ class Depoimento:
     dias_para_ativacao: int | None = None
     percentual_desconto: Decimal | None = None
     tempo_conta_ativa_meses: int | None = None
-    cliente_id: str | None = None  # dado interno: nunca vai para a resposta publica
+    cliente_id: str | None = None
 
     def __post_init__(self) -> None:
         if not 1 <= self.avaliacao <= 5:
@@ -50,7 +37,6 @@ class Depoimento:
         return self.publicacao_autorizada and bool(self.texto.strip())
 
     def dados_publicos(self) -> dict:
-        """Somente os campos publicos do contrato. Nao autorizado = 404."""
         if not self.pode_ser_publicado():
             raise RecursoNaoEncontrado("Depoimento nao encontrado.")
         return {

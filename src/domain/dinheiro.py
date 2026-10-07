@@ -1,14 +1,4 @@
-"""
-Objeto de valor Dinheiro.
-
-O contrato da API representa todo valor monetario como { valor, moeda }.
-Aqui essa ideia vira uma classe com regras proprias:
-- o valor nunca e negativo e sempre tem 2 casas decimais;
-- so se soma dinheiro da mesma moeda (somar reais com dolares e um erro).
-
-Usamos Decimal, e nao float, porque float arredonda errado com dinheiro
-(0.1 + 0.2 = 0.30000000000000004).
-"""
+"""Objeto de valor Dinheiro."""
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -30,7 +20,6 @@ class Dinheiro:
         moeda = self.moeda.upper()
         if len(moeda) != 3 or not moeda.isalpha():
             raise DadoInvalido("moeda", "Moeda deve seguir o padrao ISO 4217, por exemplo BRL.")
-        # frozen=True impede atribuicao direta; object.__setattr__ e o jeito de normalizar no construtor.
         object.__setattr__(self, "valor", valor)
         object.__setattr__(self, "moeda", moeda)
 

@@ -1,17 +1,4 @@
-"""
-Ponto de entrada da API Bulbe.
-
-Responsabilidades deste arquivo:
-- criar o app FastAPI;
-- registrar os routers (camada de Apresentacao);
-- decidir qual implementacao de repositorio cada servico recebe
-  (Sprint 2: em memoria; Sprint 3: SQLAlchemy). E o UNICO lugar que muda
-  quando o banco entrar;
-- converter todo erro para o formato do contrato
-  (docs/api/openapi.yaml, schema Erro): codigo, mensagem, detalhes, request_id.
-
-Rodar localmente:  uvicorn src.main:app --reload
-"""
+"""Ponto de entrada da API Bulbe."""
 
 from uuid import uuid4
 
@@ -30,8 +17,6 @@ app = FastAPI(
 )
 
 app.include_router(status_router)
-# Cada story registra o seu router aqui, por exemplo:
-# app.include_router(usina_router)
 
 
 def _request_id(request: Request) -> str:
@@ -45,7 +30,6 @@ def resposta_de_erro(
     mensagem: str,
     detalhes: list[dict] | None = None,
 ) -> JSONResponse:
-    """Monta o corpo de erro padrao. Todo erro da API sai por aqui."""
     return JSONResponse(
         status_code=status,
         content={
@@ -64,11 +48,8 @@ def tratar_erro_de_negocio(request: Request, exc: ErroDeNegocio) -> JSONResponse
 
 @app.exception_handler(RequestValidationError)
 def tratar_erro_de_validacao(request: Request, exc: RequestValidationError) -> JSONResponse:
-    # O contrato usa 400 para JSON, campos ou parametros invalidos.
-    # 422 fica reservado para regra de negocio (ex.: cliente inelegivel).
     detalhes = [
         {
-            # loc vem como ("body", "email"); o primeiro item so diz onde estava o campo
             "campo": ".".join(str(parte) for parte in erro.get("loc", ())[1:]) or str(erro.get("loc", "")),
             "mensagem": erro.get("msg", ""),
         }

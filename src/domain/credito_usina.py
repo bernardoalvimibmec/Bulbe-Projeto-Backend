@@ -1,17 +1,4 @@
-"""
-Creditos de energia das usinas (US07 — credito por usina; US08 — total gerado).
-
-CreditoUsina: quanto uma usina gerou em reais numa competencia (diagrama de classes).
-ResumoCreditos: o card "Total gerado" da tela inicial.
-
-A regra mais importante da US08 mora aqui, em ResumoCreditos.calcular():
-- entram so as usinas do criterio (por padrao, as ativas);
-- so se somam creditos da MESMA competencia;
-- se faltar o credito de alguma usina do criterio, NAO devolvemos um total
-  parcial como se fosse real (RNF006): o resultado e "dado indisponivel" (503);
-- a data de atualizacao do total e a do credito mais antigo usado na conta,
-  porque o total so e tao atual quanto o seu dado mais velho (RNF007).
-"""
+"""Creditos por usina (US07) e resumo de creditos (US08)."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -78,7 +65,7 @@ class ResumoCreditos:
 
         total = Dinheiro.zero(moeda)
         for credito in creditos_usados:
-            total = total + credito.creditos  # Dinheiro so soma a mesma moeda
+            total = total + credito.creditos
 
         atualizado_em = min((c.atualizado_em for c in creditos_usados), default=None)
 

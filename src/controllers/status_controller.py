@@ -1,6 +1,4 @@
-"""
-Rota de status da API, usada para conferir se o servidor esta no ar.
-"""
+"""Rota de status da API."""
 
 from fastapi import APIRouter
 

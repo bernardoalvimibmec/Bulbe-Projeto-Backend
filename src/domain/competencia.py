@@ -1,10 +1,4 @@
-"""
-Objeto de valor Competencia: o mes de referencia de creditos e faturas.
-
-O contrato usa o formato AAAA-MM (ex.: "2026-08"). Em vez de cada parte do
-codigo conferir esse texto na mao, a regra mora aqui: se a competencia existe
-como objeto, ela ja e valida.
-"""
+"""Objeto de valor Competencia (AAAA-MM)."""
 
 import re
 from dataclasses import dataclass
@@ -27,7 +21,6 @@ class Competencia:
 
     @classmethod
     def de_texto(cls, texto: str) -> "Competencia":
-        """Converte "2026-08" em Competencia(2026, 8). Formato errado vira erro 400."""
         encontrado = _FORMATO.match(texto or "")
         if not encontrado:
             raise DadoInvalido("competencia", "Use o formato AAAA-MM, por exemplo 2026-08.")

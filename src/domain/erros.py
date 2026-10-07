@@ -1,14 +1,7 @@
-"""
-Erros de negocio do dominio.
-
-Os servicos levantam essas excecoes; quem transforma em resposta HTTP e o
-handler registrado em src/main.py. Assim nenhum servico precisa saber de HTTP.
-"""
+"""Excecoes de negocio do dominio."""
 
 
 class ErroDeNegocio(Exception):
-    """Erro de negocio no formato do contrato: codigo, mensagem e status HTTP."""
-
     def __init__(
         self,
         codigo: str,
@@ -24,8 +17,6 @@ class ErroDeNegocio(Exception):
 
 
 class DadoInvalido(ErroDeNegocio):
-    """Um valor que o dominio recusa (ex.: competencia fora do formato AAAA-MM). Vira 400."""
-
     def __init__(self, campo: str, mensagem: str) -> None:
         super().__init__(
             "REQUISICAO_INVALIDA",

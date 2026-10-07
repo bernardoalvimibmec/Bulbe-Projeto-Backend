@@ -1,15 +1,4 @@
-"""
-Entidade Usina (US06 — listar usinas ativas).
-
-Segue o diagrama de classes (docs/diagramas/classes-dominio.puml):
-id, nome, cidade, estado, regiao, status, atualizadaEm.
-
-Regras que moram na propria usina:
-- os dados basicos sao validados na criacao (nome, UF com 2 letras, status conhecido);
-- a usina sabe dizer se esta ativa;
-- a usina sabe se deve aparecer numa listagem: sem filtro, so as ativas
-  aparecem para o publico; com filtro, so as do status pedido.
-"""
+"""Entidade Usina (US06)."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -52,7 +41,6 @@ class Usina:
         return self.status == StatusUsina.ativa
 
     def aparece_na_listagem(self, status_filtro: StatusUsina | None = None) -> bool:
-        """Regra da US06: sem filtro, o publico ve so as usinas ativas."""
         if status_filtro is None:
             return self.esta_ativa()
         return self.status == StatusUsina(status_filtro)
