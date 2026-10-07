@@ -23,6 +23,18 @@ class ErroDeNegocio(Exception):
         super().__init__(mensagem)
 
 
+class DadoInvalido(ErroDeNegocio):
+    """Um valor que o dominio recusa (ex.: competencia fora do formato AAAA-MM). Vira 400."""
+
+    def __init__(self, campo: str, mensagem: str) -> None:
+        super().__init__(
+            "REQUISICAO_INVALIDA",
+            mensagem,
+            400,
+            detalhes=[{"campo": campo, "mensagem": mensagem}],
+        )
+
+
 class RecursoNaoEncontrado(ErroDeNegocio):
     def __init__(self, mensagem: str = "O recurso solicitado nao foi encontrado.") -> None:
         super().__init__("RECURSO_NAO_ENCONTRADO", mensagem, 404)
